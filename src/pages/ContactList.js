@@ -5,7 +5,7 @@ function ContactList() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:3000/contacts');
+                const response = await fetch(`/api/contacts`);
                 const result = await response.json();
                 setData(result.records);
             } catch (error) {
