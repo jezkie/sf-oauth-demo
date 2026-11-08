@@ -83,7 +83,60 @@ app.post('/oauth2/access_token', jsonParser, async (req, res) => {
     res.send({ message: 'Access token stored successfully!' });
 })
 
-app.get('/contacts', async (req, res) => {
+app.get('/api/oauth2/web-server', async (req, res)=> {
+    const tokentUrl = `${oauthUrl}/authorize`;
+    const params = new URLSearchParams();
+    params.append('response_type', 'code');
+    params.append('client_id', CLIENT_ID);
+    params.append('state', 'webserverflow');
+
+    // params.append('redirect_uri', 'https://localhost:3006/token');
+    params.append('redirect_uri', 'https://sf-oauth-demo.vercel.app/token');
+
+
+    try {
+        const response = await axios.post(tokentUrl, params);
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Content-Type', 'text/html');
+        res.send(Buffer.from(response.data));
+    } catch (error) {
+        console.log('Authentication errors', error);
+    }
+});
+
+app.get('/api/oauth2/token', async (req, res) => {
+    const tokentUrl = `${oauthUrl}/token`;
+    try {
+        
+        const response = await axios.post(tokentUrl, {
+                grant_type: 'authorization_code',
+                code: decodeURI(req.query.code),
+                client_id: CLIENT_ID,
+                client_secret: CLIENT_SECRET,
+                // redirect_uri: 'https://localhost:3006/token'
+                redirect_uri: 'https://sf-oauth-demo.vercel.app/token'
+
+            }, 
+            {
+                headers: { 
+                    "content-type": "application/x-www-form-urlencoded"
+                }
+            }
+        );
+        res.set('Access-Control-Allow-Origin', '*');
+        storage.setItem('access_token', response.data.access_token);
+        storage.setItem('refresh_token', response.data.refresh_token);
+        console.log('@@access token has been save', storage.getItem('access_token'));
+        
+        res.send(response.data);
+        console.log('response', response);
+    } catch (error) {
+        console.log('Authentication errors', error);
+        
+    }
+});
+
+app.get('/api/contacts', async (req, res) => {
   const queryP = {
       q: `SELECT Name, FirstName, LastName, Email, MailingAddress, Title FROM Contact WHERE Title != null ORDER BY Name ASC LIMIT 10`,
     };
@@ -97,6 +150,26 @@ app.get('/contacts', async (req, res) => {
     res.send(result.data);
 })
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
-})
+app.get('/api/lightningoutsingleaccess', async (req, res) => {
+    try {
+        const response = await axios.post('https://mindful-narwhal-6i6s53-dev-ed.my.salesforce.com/services/oauth2/lightningoutsingleaccess', {
+                access_token: storage.getItem('access_token'),
+                lightning_out_app_id: '1Usg5000000079ZCAQ',
+            }, 
+            {
+                headers: { 
+                    "content-type": "application/x-www-form-urlencoded"
+                }
+            }
+        );
+        res.send(response.data);
+    } catch (error) {
+        console.log('lightningoutsingleaccess errors', error);
+    }
+});
+
+// app.listen(port, () => {
+//   console.log(`Example app listening on port ${port}`)
+// })
+
+module.exports = app; 
